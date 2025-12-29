@@ -322,3 +322,13 @@ The accounting equation method provides a logical and mathematical foundation fo
 
 By mastering this method, students gain strong conceptual clarity that prepares them for journal entries, ledgers, trial balances, and financial statements.
 
+### Generic Depreciation Treatment Example
+
+If depreciation is recorded for any amount:
+
+Impact:
+- Assets decrease by depreciation amount
+- Expense (Depreciation) increases
+- Capital decreases
+
+This applies regardless of the amount.

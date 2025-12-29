@@ -109,8 +109,8 @@ Assets = Liabilities + Capital
 Assets ↓ ₹{amount} = Capital ↓ ₹{amount}
 
 ### Journal Entry
-{debit} Dr ₹{amount}
-To {credit} ₹{amount}
+- {debit} Dr ₹{amount}
+- To {credit} ₹{amount}
 """
 
 # ---------------------------

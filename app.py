@@ -1,5 +1,3 @@
-app.py fo accountin 
-
 import streamlit as st
 
 # ---------------------------

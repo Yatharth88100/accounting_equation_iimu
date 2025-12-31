@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # ---------------------------
-# LOAD NOTES
+# LOAD THEORY NOTES
 # ---------------------------
 @st.cache_data
 def load_notes():
@@ -32,7 +32,23 @@ def split_sections(text):
     return sections
 
 # ---------------------------
-# BASIC SEARCH (THEORY)
+# LOAD TRANSACTION RULES
+# ---------------------------
+@st.cache_data
+def load_transaction_rules():
+    with open("transaction_rules.md", "r", encoding="utf-8") as f:
+        return f.read()
+
+def parse_rules(md_text):
+    rules = []
+    blocks = md_text.split("\n---\n")
+    for block in blocks:
+        if "**Keywords:**" in block:
+            rules.append(block)
+    return rules
+
+# ---------------------------
+# BASIC THEORY SEARCH
 # ---------------------------
 def search_theory(question, sections):
     q_words = set(question.lower().split())
@@ -45,72 +61,47 @@ def search_theory(question, sections):
     return scored[0][1] if scored else None
 
 # ---------------------------
-# NUMERICAL LOGIC
+# NUMERICAL HELPERS
 # ---------------------------
 def extract_amount(text):
     match = re.search(r"₹?\s?(\d+)", text.replace(",", ""))
     return int(match.group(1)) if match else None
 
-def solve_transaction(question):
+# ---------------------------
+# RULE-BASED SOLVER
+# ---------------------------
+def solve_transaction(question, rules):
     q = question.lower()
     amount = extract_amount(q)
 
     if not amount:
         return None
 
-    # RENT
-    if "rent" in q and "paid" in q:
-        return format_answer(
-            transaction=f"Paid rent ₹{amount}",
-            debit="Rent A/c",
-            credit="Cash A/c",
-            amount=amount,
-            explanation="because rent is an expense"
-        )
+    for rule in rules:
+        keyword_line = re.search(r"\*\*Keywords:\*\*(.*)", rule)
+        if not keyword_line:
+            continue
 
-    # SALARY
-    if "salary" in q and "paid" in q:
-        return format_answer(
-            transaction=f"Paid salary ₹{amount}",
-            debit="Salary A/c",
-            credit="Cash A/c",
-            amount=amount,
-            explanation="because salary is an expense"
-        )
+        keywords = [k.strip().lower() for k in keyword_line.group(1).split(",")]
 
-    # DEPRECIATION
-    if "depreciation" in q:
-        return format_answer(
-            transaction=f"Depreciation charged ₹{amount}",
-            debit="Depreciation A/c",
-            credit="Asset A/c",
-            amount=amount,
-            explanation="because depreciation is a non-cash expense"
-        )
+        if all(k in q for k in keywords):
+            return format_answer(rule, amount)
 
     return None
 
 # ---------------------------
 # OUTPUT TEMPLATE
 # ---------------------------
-def format_answer(transaction, debit, credit, amount, explanation):
+def format_answer(rule_text, amount):
     return f"""
 ### Transaction
-{transaction}
+{rule_text}
 
-### Accounting Equation
-Assets = Liabilities + Capital
+### Amount Used
+₹{amount}
 
-### Effect
-- Cash (Asset) ↓ ₹{amount}
-- Capital ↓ ₹{amount} ({explanation})
-
-### Equation Treatment
-Assets ↓ ₹{amount} = Capital ↓ ₹{amount}
-
-### Journal Entry
-- {debit} Dr ₹{amount}
-- To {credit} ₹{amount}
+### Note
+This solution is generated dynamically using rule-based accounting logic.
 """
 
 # ---------------------------
@@ -118,14 +109,17 @@ Assets ↓ ₹{amount} = Capital ↓ ₹{amount}
 # ---------------------------
 def main():
     st.title("📘 Accounting Equation Solver")
-    st.caption("Notes-based theory + numerical problem solver (No AI, No API)")
+    st.caption("Rule-based accounting system using Markdown (No AI, No API)")
 
     notes = load_notes()
     sections = split_sections(notes)
 
+    rule_text = load_transaction_rules()
+    rules = parse_rules(rule_text)
+
     question = st.text_input(
         "Ask a question",
-        placeholder="Example: I paid a rent for 15570. Accounting equation treatment"
+        placeholder="Example: Accounting equation for purchase of land and building of 2000000"
     )
 
     if st.button("Get Answer", use_container_width=True):
@@ -133,7 +127,7 @@ def main():
             st.warning("Please enter a question.")
             return
 
-        numerical_answer = solve_transaction(question)
+        numerical_answer = solve_transaction(question, rules)
 
         if numerical_answer:
             st.markdown(numerical_answer)

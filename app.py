@@ -42,9 +42,25 @@ def load_transaction_rules():
 def parse_rules(md_text):
     rules = []
     blocks = md_text.split("\n---\n")
+
     for block in blocks:
-        if "**Keywords:**" in block:
-            rules.append(block)
+        block_lower = block.lower()
+
+        kw_match = re.search(r"\*\*keywords:\*\*(.+)", block_lower)
+        journal_match = re.search(r"\*\*journal:\*\*(.+)", block, re.DOTALL)
+        effect_match = re.search(r"\*\*effect:\*\*(.+)", block)
+
+        if not kw_match or not journal_match:
+            continue
+
+        keywords = [k.strip() for k in kw_match.group(1).split(",")]
+
+        rules.append({
+            "keywords": keywords,
+            "effect": effect_match.group(1).strip() if effect_match else "",
+            "journal": journal_match.group(1).strip()
+        })
+
     return rules
 
 # ---------------------------
@@ -53,15 +69,17 @@ def parse_rules(md_text):
 def search_theory(question, sections):
     q_words = set(question.lower().split())
     scored = []
+
     for sec in sections:
         score = len(q_words & set(sec.lower().split()))
         if score > 0:
             scored.append((score, sec))
+
     scored.sort(reverse=True)
     return scored[0][1] if scored else None
 
 # ---------------------------
-# NUMERICAL HELPERS
+# AMOUNT EXTRACTION
 # ---------------------------
 def extract_amount(text):
     match = re.search(r"₹?\s?(\d+)", text.replace(",", ""))
@@ -75,33 +93,38 @@ def solve_transaction(question, rules):
     amount = extract_amount(q)
 
     if not amount:
-        return None
+        return None, "NO_AMOUNT"
 
     for rule in rules:
-        keyword_line = re.search(r"\*\*Keywords:\*\*(.*)", rule)
-        if not keyword_line:
-            continue
+        if all(k in q for k in rule["keywords"]):
+            return format_answer(
+                transaction=question.strip().capitalize(),
+                amount=amount,
+                effect=rule["effect"],
+                journal=rule["journal"]
+            ), "SOLVED"
 
-        keywords = [k.strip().lower() for k in keyword_line.group(1).split(",")]
-
-        if all(k in q for k in keywords):
-            return format_answer(rule, amount)
-
-    return None
+    return None, "NO_RULE"
 
 # ---------------------------
 # OUTPUT TEMPLATE
 # ---------------------------
-def format_answer(rule_text, amount):
+def format_answer(transaction, amount, effect, journal):
     return f"""
 ### Transaction
-{rule_text}
+{transaction}
 
-### Amount Used
-₹{amount}
+### Accounting Equation
+Assets = Liabilities + Capital
 
-### Note
-This solution is generated dynamically using rule-based accounting logic.
+### Effect
+{effect.replace("₹", f"₹{amount}")}
+
+### Equation Treatment
+Effect applied using amount ₹{amount}
+
+### Journal Entry
+{journal.replace("₹", f"₹{amount}")}
 """
 
 # ---------------------------
@@ -109,13 +132,13 @@ This solution is generated dynamically using rule-based accounting logic.
 # ---------------------------
 def main():
     st.title("📘 Accounting Equation Solver")
-    st.caption("Rule-based accounting system using Markdown (No AI, No API)")
+    st.caption("Rule-based accounting engine using Markdown (No AI, No API)")
 
     notes = load_notes()
     sections = split_sections(notes)
 
-    rule_text = load_transaction_rules()
-    rules = parse_rules(rule_text)
+    rules_md = load_transaction_rules()
+    rules = parse_rules(rules_md)
 
     question = st.text_input(
         "Ask a question",
@@ -127,17 +150,23 @@ def main():
             st.warning("Please enter a question.")
             return
 
-        numerical_answer = solve_transaction(question, rules)
+        answer, status = solve_transaction(question, rules)
 
-        if numerical_answer:
-            st.markdown(numerical_answer)
-        else:
+        if status == "SOLVED":
+            st.markdown(answer)
+
+        elif status == "NO_AMOUNT":
             theory = search_theory(question, sections)
             if theory:
                 st.markdown("### Explanation")
                 st.markdown(theory)
             else:
                 st.error("This information is not available in the provided notes.")
+
+        else:
+            st.error(
+                "This transaction type is not yet defined in transaction_rules.md."
+            )
 
 if __name__ == "__main__":
     main()

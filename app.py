@@ -64,7 +64,7 @@ def parse_rules(md_text):
     return rules
 
 # ---------------------------
-# BASIC THEORY SEARCH
+# BASIC THEORY SEARCH (ONLY WHEN NO AMOUNT)
 # ---------------------------
 def search_theory(question, sections):
     q_words = set(question.lower().split())
@@ -86,7 +86,7 @@ def extract_amount(text):
     return int(match.group(1)) if match else None
 
 # ---------------------------
-# RULE-BASED SOLVER
+# RULE-BASED SOLVER (FIXED)
 # ---------------------------
 def solve_transaction(question, rules):
     q = question.lower()
@@ -96,7 +96,8 @@ def solve_transaction(question, rules):
         return None, "NO_AMOUNT"
 
     for rule in rules:
-        if all(k in q for k in rule["keywords"]):
+        # ✅ FIX: match ANY keyword, not ALL
+        if any(k in q for k in rule["keywords"]):
             return format_answer(
                 transaction=question.strip().capitalize(),
                 amount=amount,
@@ -142,7 +143,7 @@ def main():
 
     question = st.text_input(
         "Ask a question",
-        placeholder="Example: Accounting equation for purchase of land and building of 2000000"
+        placeholder="Example: Purchase of land and building worth 2000000"
     )
 
     if st.button("Get Answer", use_container_width=True):
@@ -170,3 +171,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
